@@ -1,0 +1,1451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sivakasi Sparkles: Interactive Tamil Nadu Diwali Crackers</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+            box-sizing: border-box;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #070614;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            touch-action: none;
+        }
+        .font-festive {
+            font-family: 'Fredoka', sans-serif;
+        }
+        #stage-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            cursor: none;
+        }
+        .ui-layer {
+            position: relative;
+            z-index: 10;
+            pointer-events: none;
+        }
+        .interactive-ui {
+            pointer-events: auto;
+        }
+        /* Custom Scrollbar for Dock on small screens */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        @keyframes pulse-glow {
+            0%, 100% { filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.7)); }
+            50% { filter: drop-shadow(0 0 18px rgba(245, 158, 11, 1)); }
+        }
+        .cracker-card.active {
+            border-color: #fbbf24;
+            background: linear-gradient(180deg, rgba(251, 191, 36, 0.25) 0%, rgba(180, 83, 9, 0.35) 100%);
+            transform: translateY(-6px) scale(1.04);
+            box-shadow: 0 10px 25px -5px rgba(245, 158, 11, 0.4);
+        }
+        .cracker-card {
+            transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .cracker-card:hover:not(.active) {
+            transform: translateY(-3px);
+            border-color: rgba(251, 191, 36, 0.5);
+        }
+    </style>
+</head>
+<body class="text-amber-50 flex flex-col justify-between h-screen w-screen overflow-hidden">
+
+    <!-- Interactive Canvas -->
+    <canvas id="stage-canvas"></canvas>
+
+    <!-- Top Minimal HUD -->
+    <header class="ui-layer w-full px-3 py-3 sm:px-6 sm:py-4 flex flex-wrap items-center justify-between gap-2">
+        <!-- Brand & Festival Title -->
+        <div class="interactive-ui flex items-center gap-3 bg-slate-950/75 backdrop-blur-md border border-amber-500/30 px-3.5 py-2 rounded-2xl shadow-lg">
+            <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 via-orange-500 to-red-600 flex items-center justify-center shadow-inner">
+                <svg class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C9.5 6 7 9 7 13C7 15.76 9.24 18 12 18C14.76 18 17 15.76 17 13C17 9 14.5 6 12 2ZM12 16C10.34 16 9 14.66 9 13C9 11.12 10.34 9.04 12 6.84C13.66 9.04 15 11.12 15 13C15 14.66 13.66 16 12 16Z"/>
+                    <path d="M4 20H20V22H4V20Z"/>
+                </svg>
+            </div>
+            <div>
+                <h1 class="font-festive text-base sm:text-lg font-bold tracking-wide bg-gradient-to-r from-amber-200 via-yellow-400 to-orange-400 bg-clip-text text-transparent leading-tight">
+                    Sivakasi Sparkles
+                </h1>
+                <p class="text-[10px] sm:text-xs text-amber-200/70">Tamil Nadu Diwali Sound & Light</p>
+            </div>
+        </div>
+
+        <!-- Live Decibel Sound Meter -->
+        <div class="interactive-ui flex items-center gap-3 bg-slate-950/80 backdrop-blur-md border border-amber-500/30 px-4 py-2 rounded-2xl shadow-lg min-w-[210px] sm:min-w-[260px]">
+            <div class="flex flex-col w-full">
+                <div class="flex justify-between items-center text-xs mb-1">
+                    <span class="text-amber-200/80 font-semibold uppercase tracking-wider text-[10px]">Sound Meter</span>
+                    <span id="db-text" class="font-festive font-bold text-emerald-400 text-xs sm:text-sm">15 dB • Quiet Night</span>
+                </div>
+                <div class="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden p-0.5 border border-slate-700">
+                    <div id="db-bar" class="h-full rounded-full bg-gradient-to-r from-emerald-400 via-amber-400 to-red-600 transition-all duration-75" style="width: 8%;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Character & Mode Controls -->
+        <div class="interactive-ui flex items-center gap-2 bg-slate-950/75 backdrop-blur-md border border-amber-500/30 p-1.5 rounded-2xl shadow-lg">
+            <!-- Character Toggle -->
+            <button id="char-boy-btn" onclick="setCharacter('boy')" class="px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all bg-amber-500 text-slate-950 shadow">
+                <span>👦🏽</span> <span class="hidden md:inline">Karthik (Veshti)</span>
+            </button>
+            <button id="char-girl-btn" onclick="setCharacter('girl')" class="px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all text-amber-200/80 hover:text-white">
+                <span>👧🏽</span> <span class="hidden md:inline">Ananya (Pattu)</span>
+            </button>
+
+            <div class="h-5 w-[1px] bg-amber-500/20 mx-0.5"></div>
+
+            <!-- Multi-Cracker Free Play Toggle -->
+            <button id="mode-btn" onclick="togglePlayMode()" class="px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all bg-slate-800/90 text-amber-300 border border-amber-500/30 hover:bg-slate-700" title="Toggle between Single Stage Cracker or Click-to-Place Multiple Crackers">
+                <span id="mode-icon">🎯</span>
+                <span id="mode-label">Stage Mode</span>
+            </button>
+
+            <!-- Clear / Reset Button -->
+            <button onclick="resetStage()" class="p-1.5 rounded-xl text-xs font-semibold bg-slate-800/90 text-amber-200/80 hover:text-white hover:bg-red-900/50 border border-slate-700 transition-all" title="Place Fresh Cracker">
+                🔄
+            </button>
+        </div>
+    </header>
+
+    <!-- Center Floating Instruction Pill -->
+    <div class="ui-layer flex flex-col items-center justify-center pointer-events-none px-4">
+        <div id="instruction-banner" class="bg-slate-950/70 backdrop-blur-md border border-amber-400/30 px-4 py-1.5 rounded-full text-xs sm:text-sm text-amber-100 shadow-lg flex items-center gap-2 transition-opacity duration-300">
+            <span class="inline-block w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+            <span id="instruction-text">Hold the glowing Agarbatti tip near the cracker's fuse to light it!</span>
+        </div>
+    </div>
+
+    <!-- Bottom Cracker Progression Dock (Minimal Sound -> Maximum Sound) -->
+    <footer class="ui-layer w-full pb-3 pt-1 px-2 sm:px-6 flex flex-col items-center">
+        <div class="w-full max-w-5xl bg-slate-950/85 backdrop-blur-xl border border-amber-500/30 rounded-3xl p-2 sm:p-3 shadow-2xl interactive-ui">
+            <!-- Progression Header -->
+            <div class="flex justify-between items-center px-3 mb-1.5 text-[10px] sm:text-xs font-semibold tracking-wider uppercase text-amber-300/70">
+                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-400"></span> 1. Minimal Sound (Soft Fizz)</span>
+                <span class="hidden sm:inline text-amber-200/50">Sivakasi Sound Progression ➔</span>
+                <span class="flex items-center gap-1">7. Maximum Roar (120 dB) <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span></span>
+            </div>
+
+            <!-- 7 Authentic Tamil Nadu Crackers -->
+            <div id="cracker-dock" class="grid grid-cols-7 gap-1.5 sm:gap-2.5 overflow-x-auto no-scrollbar py-1">
+                <!-- Populated dynamically by JS -->
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        /********************************************************************
+         * 1. SIVAKASI FIRECRACKER CATALOG (Minimal Sound -> Maximum Sound)
+         ********************************************************************/
+        const CRACKERS = [
+            {
+                id: 'paambu',
+                level: 1,
+                tamilName: 'Paambu Maathirai',
+                engName: 'Snake Tablet',
+                soundDesc: '20 dB • Soft Hiss',
+                maxDb: 24,
+                color: '#10b981',
+                badgeBg: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+                svg: `<svg viewBox="0 0 48 48" class="w-7 h-7 sm:w-9 sm:h-9 mx-auto"><circle cx="24" cy="32" r="10" fill="#1e293b" stroke="#94a3b8" stroke-width="2"/><path d="M24 22 Q16 14 26 10 Q34 6 24 2" fill="none" stroke="#64748b" stroke-width="3" stroke-linecap="round"/></svg>`
+            },
+            {
+                id: 'mathappu',
+                level: 2,
+                tamilName: 'Kambi Maathappu',
+                engName: 'Golden Sparkler',
+                soundDesc: '40 dB • Crispy Crackle',
+                maxDb: 44,
+                color: '#f59e0b',
+                badgeBg: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
+                svg: `<svg viewBox="0 0 48 48" class="w-7 h-7 sm:w-9 sm:h-9 mx-auto"><line x1="24" y1="44" x2="24" y2="12" stroke="#cbd5e1" stroke-width="3"/><line x1="24" y1="32" x2="24" y2="14" stroke="#d97706" stroke-width="5" stroke-linecap="round"/><circle cx="24" cy="14" r="6" fill="#fef08a"/><path d="M24 4 L24 24 M14 14 L34 14 M17 7 L31 21 M31 7 L17 21" stroke="#fbbf24" stroke-width="2"/></svg>`
+            },
+            {
+                id: 'chakkaram',
+                level: 3,
+                tamilName: 'Chakkaram',
+                engName: 'Ground Spinner',
+                soundDesc: '58 dB • Zipping Whir',
+                maxDb: 62,
+                color: '#06b6d4',
+                badgeBg: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
+                svg: `<svg viewBox="0 0 48 48" class="w-7 h-7 sm:w-9 sm:h-9 mx-auto"><circle cx="24" cy="26" r="14" fill="#ec4899" stroke="#fde047" stroke-width="2.5"/><circle cx="24" cy="26" r="8" fill="#10b981"/><circle cx="24" cy="26" r="3" fill="#fff"/><path d="M24 12 Q30 6 34 8" fill="none" stroke="#fef08a" stroke-width="2"/></svg>`
+            },
+            {
+                id: 'poothotti',
+                level: 4,
+                tamilName: 'Poothotti',
+                engName: 'Flower Pot Fountain',
+                soundDesc: '75 dB • Deep Whoosh',
+                maxDb: 78,
+                color: '#f97316',
+                badgeBg: 'bg-orange-500/20 text-orange-300 border-orange-500/40',
+                svg: `<svg viewBox="0 0 48 48" class="w-7 h-7 sm:w-9 sm:h-9 mx-auto"><polygon points="24,12 10,40 38,40" fill="#f97316" stroke="#fde047" stroke-width="2"/><polygon points="24,18 15,34 33,34" fill="#ec4899"/><path d="M24 12 L24 5" stroke="#fef08a" stroke-width="2.5"/></svg>`
+            },
+            {
+                id: 'rocket',
+                level: 5,
+                tamilName: 'Sivakasi Rocket',
+                engName: 'Whistling Sky Burst',
+                soundDesc: '92 dB • Sharp Whistle',
+                maxDb: 95,
+                color: '#a855f7',
+                badgeBg: 'bg-purple-500/20 text-purple-300 border-purple-500/40',
+                svg: `<svg viewBox="0 0 48 48" class="w-7 h-7 sm:w-9 sm:h-9 mx-auto"><line x1="20" y1="18" x2="14" y2="44" stroke="#d97706" stroke-width="2"/><polygon points="26,6 18,18 30,20" fill="#ef4444"/><rect x="20" y="18" width="9" height="14" transform="rotate(12 24 24)" fill="#3b82f6" stroke="#fde047" stroke-width="1.5"/></svg>`
+            },
+            {
+                id: 'lakshmi',
+                level: 6,
+                tamilName: 'Lakshmi / Kuruvi Vedi',
+                engName: 'Single Thunder Bomb',
+                soundDesc: '108 dB • Heavy DHUM!',
+                maxDb: 110,
+                color: '#ef4444',
+                badgeBg: 'bg-red-500/20 text-red-300 border-red-500/40',
+                svg: `<svg viewBox="0 0 48 48" class="w-7 h-7 sm:w-9 sm:h-9 mx-auto"><rect x="15" y="16" width="18" height="24" rx="2" fill="#dc2626" stroke="#fbbf24" stroke-width="2"/><rect x="15" y="23" width="18" height="10" fill="#fde047"/><path d="M24 16 Q28 8 33 10" fill="none" stroke="#a3e635" stroke-width="2.5"/></svg>`
+            },
+            {
+                id: 'wala1000',
+                level: 7,
+                tamilName: '1000 Wala Saram',
+                engName: 'Garland Mega Roar',
+                soundDesc: '120 dB • Non-Stop Roar!',
+                maxDb: 120,
+                color: '#e11d48',
+                badgeBg: 'bg-rose-600/30 text-rose-200 border-rose-500/60',
+                svg: `<svg viewBox="0 0 48 48" class="w-7 h-7 sm:w-9 sm:h-9 mx-auto"><circle cx="24" cy="27" r="14" fill="#991b1b" stroke="#ef4444" stroke-width="3"/><circle cx="24" cy="27" r="8" fill="#dc2626" stroke="#fbbf24" stroke-width="2" stroke-dasharray="3 2"/><path d="M24 13 L24 5" stroke="#fde047" stroke-width="2.5"/></svg>`
+            }
+        ];
+
+        /********************************************************************
+         * 2. PROCEDURAL WEB AUDIO API SOUND SYNTHESIZER
+         *    Generates authentic firecracker sounds from 20dB to 120dB
+         ********************************************************************/
+        class SivakasiSoundEngine {
+            constructor() {
+                this.ctx = null;
+                this.noiseBuffer = null;
+                this.currentDb = 15;
+                this.targetDb = 15;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioCtx();
+                    // Create 3-second reusable white noise buffer
+                    const bufferSize = this.ctx.sampleRate * 3;
+                    this.noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                    const data = this.noiseBuffer.getChannelData(0);
+                    for (let i = 0; i < bufferSize; i++) {
+                        data[i] = Math.random() * 2 - 1;
+                    }
+                }
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            boostDb(level) {
+                if (level > this.targetDb) {
+                    this.targetDb = level;
+                }
+            }
+
+            // Short fuse ignition sizzle when Agarbatti touches fuse
+            playFuseSizzle(duration = 0.25) {
+                this.init();
+                const now = this.ctx.currentTime;
+                const src = this.ctx.createBufferSource();
+                src.buffer = this.noiseBuffer;
+
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.setValueAtTime(3800 + Math.random() * 1500, now);
+                filter.Q.value = 3.0;
+
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(0.06, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+                src.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                src.start(now, Math.random() * 2, duration);
+                this.boostDb(28);
+            }
+
+            // Level 1: Paambu Maathirai (Soft Continuous Hiss)
+            playSnakeHiss(duration = 4.2) {
+                this.init();
+                const now = this.ctx.currentTime;
+                const src = this.ctx.createBufferSource();
+                src.buffer = this.noiseBuffer;
+                src.loop = true;
+
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.setValueAtTime(1400, now);
+                filter.Q.value = 1.8;
+
+                // Subtle LFO modulation for organic fizzing
+                const lfo = this.ctx.createOscillator();
+                lfo.frequency.value = 6;
+                const lfoGain = this.ctx.createGain();
+                lfoGain.gain.value = 400;
+                lfo.connect(filter.frequency);
+                lfo.start(now);
+                lfo.stop(now + duration);
+
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(0.01, now);
+                gain.gain.linearRampToValueAtTime(0.07, now + 0.4);
+                gain.gain.setValueAtTime(0.06, now + duration - 0.6);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+                src.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                src.start(now);
+                src.stop(now + duration);
+            }
+
+            // Level 2: Kambi Maathappu (High metallic micro-crackles)
+            playSparklerCrackle() {
+                this.init();
+                const now = this.ctx.currentTime;
+                const src = this.ctx.createBufferSource();
+                src.buffer = this.noiseBuffer;
+
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'highpass';
+                filter.frequency.setValueAtTime(5200 + Math.random() * 3000, now);
+
+                const gain = this.ctx.createGain();
+                const vol = 0.05 + Math.random() * 0.08;
+                gain.gain.setValueAtTime(vol, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
+
+                src.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
+                src.start(now, Math.random() * 2, 0.05);
+            }
+
+            // Level 3: Chakkaram (Spinning Doppler Whirring + Sizzle)
+            playChakkaramSpin(duration = 4.5) {
+                this.init();
+                const now = this.ctx.currentTime;
+
+                // Noise sizzle
+                const src = this.ctx.createBufferSource();
+                src.buffer = this.noiseBuffer;
+                src.loop = true;
+
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.setValueAtTime(900, now);
+                filter.frequency.exponentialRampToValueAtTime(2600, now + duration * 0.7);
+                filter.frequency.exponentialRampToValueAtTime(600, now + duration);
+                filter.Q.value = 3.5;
+
+                // Spinning rhythmic pulse
+                const lfo = this.ctx.createOscillator();
+                lfo.frequency.setValueAtTime(5, now);
+                lfo.frequency.linearRampToValueAtTime(18, now + duration * 0.75);
+                lfo.frequency.linearRampToValueAtTime(4, now + duration);
+
+                const lfoGain = this.ctx.createGain();
+                lfoGain.gain.value = 600;
+                lfo.connect(lfoGain);
+                lfoGain.connect(filter.frequency);
+
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(0.01, now);
+                gain.gain.linearRampToValueAtTime(0.22, now + 0.4);
+                gain.gain.setValueAtTime(0.22, now + duration - 0.6);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+                src.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                lfo.start(now);
+                lfo.stop(now + duration);
+                src.start(now);
+                src.stop(now + duration);
+            }
+
+            // Level 4: Poothotti / Flower Pot (Deep Fountain Roar + Spark Whoosh)
+            playPoothottiFountain(duration = 5.0) {
+                this.init();
+                const now = this.ctx.currentTime;
+                const src = this.ctx.createBufferSource();
+                src.buffer = this.noiseBuffer;
+                src.loop = true;
+
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(450, now);
+                filter.frequency.exponentialRampToValueAtTime(1600, now + 1.5);
+                filter.frequency.exponentialRampToValueAtTime(550, now + duration);
+
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(0.02, now);
+                gain.gain.linearRampToValueAtTime(0.42, now + 0.6);
+                gain.gain.setValueAtTime(0.42, now + duration - 1.0);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+                src.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                src.start(now);
+                src.stop(now + duration);
+            }
+
+            // Level 5: Sivakasi Rocket (Sharp Whistle Sweep + Sky Burst)
+            playRocketLaunch(flightDuration = 1.15) {
+                this.init();
+                const now = this.ctx.currentTime;
+
+                // Whistle Oscillator
+                const osc = this.ctx.createOscillator();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(680, now);
+                osc.frequency.exponentialRampToValueAtTime(3400, now + flightDuration);
+
+                const whistleGain = this.ctx.createGain();
+                whistleGain.gain.setValueAtTime(0.02, now);
+                whistleGain.gain.linearRampToValueAtTime(0.25, now + 0.15);
+                whistleGain.gain.exponentialRampToValueAtTime(0.005, now + flightDuration);
+
+                osc.connect(whistleGain);
+                whistleGain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + flightDuration);
+
+                // Rocket Thruster Whoosh
+                const src = this.ctx.createBufferSource();
+                src.buffer = this.noiseBuffer;
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.value = 1800;
+
+                const noiseGain = this.ctx.createGain();
+                noiseGain.gain.setValueAtTime(0.28, now);
+                noiseGain.gain.exponentialRampToValueAtTime(0.01, now + flightDuration);
+
+                src.connect(filter);
+                filter.connect(noiseGain);
+                noiseGain.connect(this.ctx.destination);
+                src.start(now, 0, flightDuration);
+            }
+
+            // Level 6 & 7: Heavy Bomb Explosion (Lakshmi Vedi / 1000 Wala Bursts)
+            playBombBang(intensity = 1.0, panValue = 0) {
+                this.init();
+                const now = this.ctx.currentTime;
+
+                // Stereo Panner for 1000 Wala spread
+                const panner = this.ctx.createStereoPanner ? this.ctx.createStereoPanner() : null;
+                if (panner) {
+                    panner.pan.setValueAtTime(Math.max(-1, Math.min(1, panValue)), now);
+                    panner.connect(this.ctx.destination);
+                }
+                const outputNode = panner || this.ctx.destination;
+
+                // 1. Sub-Bass Chest Thump (DHUM!)
+                const subOsc = this.ctx.createOscillator();
+                subOsc.type = 'triangle';
+                subOsc.frequency.setValueAtTime(150 * (0.9 + Math.random() * 0.2), now);
+                subOsc.frequency.exponentialRampToValueAtTime(26, now + 0.38 * intensity);
+
+                const subGain = this.ctx.createGain();
+                subGain.gain.setValueAtTime(0.85 * intensity, now);
+                subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.42 * intensity);
+
+                subOsc.connect(subGain);
+                subGain.connect(outputNode);
+                subOsc.start(now);
+                subOsc.stop(now + 0.45 * intensity);
+
+                // 2. Sharp Paper-Ripping Crack Transient
+                const crackSrc = this.ctx.createBufferSource();
+                crackSrc.buffer = this.noiseBuffer;
+
+                const crackFilter = this.ctx.createBiquadFilter();
+                crackFilter.type = 'lowpass';
+                crackFilter.frequency.setValueAtTime(3200, now);
+                crackFilter.frequency.exponentialRampToValueAtTime(280, now + 0.55 * intensity);
+
+                const crackGain = this.ctx.createGain();
+                crackGain.gain.setValueAtTime(0.95 * intensity, now);
+                crackGain.gain.exponentialRampToValueAtTime(0.001, now + 0.6 * intensity);
+
+                crackSrc.connect(crackFilter);
+                crackFilter.connect(crackGain);
+                crackGain.connect(outputNode);
+                crackSrc.start(now, Math.random() * 1.5, 0.65 * intensity);
+            }
+        }
+
+        const soundEngine = new SivakasiSoundEngine();
+
+        /********************************************************************
+         * 3. STAGE, CHARACTER & PARTICLE SIMULATION ENGINE
+         ********************************************************************/
+        const canvas = document.getElementById('stage-canvas');
+        const ctx = canvas.getContext('2d');
+
+        let width = window.innerWidth;
+        let height = window.innerHeight;
+        let groundY = height * 0.78;
+
+        let selectedCracker = CRACKERS[0];
+        let characterType = 'boy'; // 'boy' (Karthik) or 'girl' (Ananya)
+        let playMode = 'stage';    // 'stage' (single focused cracker) or 'free' (click to place many)
+
+        const pointer = {
+            x: width * 0.5,
+            y: height * 0.5,
+            down: false,
+            active: false
+        };
+
+        let stars = [];
+        let particles = [];
+        let smokePuffs = [];
+        let activeCrackers = [];
+        let floatingTexts = [];
+        let screenShake = 0;
+        let skyFlash = 0;
+
+        function resizeCanvas() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+            groundY = height * 0.78;
+
+            stars = [];
+            for (let i = 0; i < 90; i++) {
+                stars.push({
+                    x: Math.random() * width,
+                    y: Math.random() * (groundY * 0.85),
+                    r: Math.random() * 1.6 + 0.4,
+                    alpha: Math.random() * 0.8 + 0.2,
+                    speed: Math.random() * 0.03 + 0.01
+                });
+            }
+
+            if (activeCrackers.length === 1 && playMode === 'stage' && activeCrackers[0].state === 'idle') {
+                activeCrackers[0].x = width * 0.56;
+                activeCrackers[0].y = groundY;
+            }
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        function spawnSparks(x, y, count, color, speed = 5, spread = Math.PI * 2, baseAngle = 0, gravity = 0.15, lifeScale = 1) {
+            for (let i = 0; i < count; i++) {
+                const angle = baseAngle + (Math.random() - 0.5) * spread;
+                const spd = (Math.random() * 0.85 + 0.15) * speed;
+                particles.push({
+                    x,
+                    y,
+                    vx: Math.cos(angle) * spd,
+                    vy: Math.sin(angle) * spd,
+                    color,
+                    size: Math.random() * 2.8 + 1.2,
+                    alpha: 1,
+                    decay: (Math.random() * 0.02 + 0.014) / lifeScale,
+                    gravity
+                });
+            }
+        }
+
+        function spawnSmoke(x, y, count = 2, scale = 1) {
+            for (let i = 0; i < count; i++) {
+                smokePuffs.push({
+                    x: x + (Math.random() - 0.5) * 14,
+                    y: y + (Math.random() - 0.5) * 8,
+                    vx: (Math.random() - 0.5) * 0.6,
+                    vy: -(Math.random() * 1.1 + 0.4),
+                    r: (Math.random() * 8 + 6) * scale,
+                    alpha: 0.32,
+                    decay: 0.005 + Math.random() * 0.004
+                });
+            }
+        }
+
+        function addFloatingText(x, y, text, color = '#fbbf24') {
+            floatingTexts.push({
+                x,
+                y,
+                text,
+                color,
+                alpha: 1,
+                vy: -1.4
+            });
+        }
+
+        class FirecrackerInstance {
+            constructor(spec, x, y) {
+                this.spec = spec;
+                this.x = x;
+                this.y = y;
+                this.state = 'idle'; // 'idle' -> 'igniting' -> 'active' -> 'done'
+                this.igniteProgress = 0;
+                this.timer = 0;
+                this.spinAngle = 0;
+                this.snakeSegments = [];
+                this.rocketY = y;
+                this.rocketVx = (Math.random() - 0.5) * 1.4;
+                this.walaBursts = 0;
+                this.fuseOffset = this.getFuseOffset();
+            }
+
+            getFuseOffset() {
+                switch (this.spec.id) {
+                    case 'paambu': return { x: 0, y: -10 };
+                    case 'mathappu': return { x: 0, y: -68 };
+                    case 'chakkaram': return { x: 16, y: -14 };
+                    case 'poothotti': return { x: 0, y: -42 };
+                    case 'rocket': return { x: -4, y: -22 };
+                    case 'lakshmi': return { x: 8, y: -38 };
+                    case 'wala1000': return { x: 0, y: -34 };
+                    default: return { x: 0, y: -25 };
+                }
+            }
+
+            getFusePos() {
+                return {
+                    x: this.x + this.fuseOffset.x,
+                    y: this.y + this.fuseOffset.y
+                };
+            }
+
+            startShow() {
+                this.state = 'active';
+                this.timer = 0;
+                const id = this.spec.id;
+
+                if (id === 'paambu') {
+                    soundEngine.playSnakeHiss(4.2);
+                    this.snakeSegments = [{ x: this.x, y: this.y - 6, r: 7 }];
+                    addFloatingText(this.x, this.y - 45, 'Shhhhh... 🐍', '#10b981');
+                } else if (id === 'mathappu') {
+                    addFloatingText(this.x, this.y - 85, 'Chit-Pit Sparkle! ✨', '#fbbf24');
+                } else if (id === 'chakkaram') {
+                    soundEngine.playChakkaramSpin(4.5);
+                    addFloatingText(this.x, this.y - 50, 'Vrrrrrr Spin! 🌀', '#06b6d4');
+                } else if (id === 'poothotti') {
+                    soundEngine.playPoothottiFountain(5.0);
+                    addFloatingText(this.x, this.y - 65, 'Shhhhhhh Fountain! ⛲', '#f97316');
+                } else if (id === 'rocket') {
+                    soundEngine.playRocketLaunch(1.1);
+                    addFloatingText(this.x, this.y - 60, 'Wheeeeee! 🚀', '#a855f7');
+                } else if (id === 'lakshmi') {
+                    // Instant powerful explosion
+                    soundEngine.playBombBang(1.0, 0);
+                    soundEngine.boostDb(this.spec.maxDb);
+                    screenShake = 18;
+                    skyFlash = 0.75;
+                    spawnSparks(this.x, this.y - 18, 95, '#ef4444', 11, Math.PI * 2, 0, 0.2, 1.3);
+                    spawnSparks(this.x, this.y - 18, 70, '#fef08a', 8, Math.PI * 2, 0, 0.15, 1.1);
+                    spawnSmoke(this.x, this.y - 18, 12, 2.2);
+                    addFloatingText(this.x, this.y - 70, 'DHUMMM!! 💥 108 dB', '#ef4444');
+                    this.state = 'done';
+                } else if (id === 'wala1000') {
+                    addFloatingText(this.x, this.y - 65, '1000 WALA SARAM ROAR!! 🔥', '#f43f5e');
+                }
+            }
+
+            update(agarbattiX, agarbattiY) {
+                if (this.state === 'idle') {
+                    const fuse = this.getFusePos();
+                    const dist = Math.hypot(agarbattiX - fuse.x, agarbattiY - fuse.y);
+                    if (dist < 34) {
+                        this.igniteProgress += 4.2;
+                        if (Math.random() < 0.45) {
+                            soundEngine.playFuseSizzle(0.12);
+                            spawnSparks(fuse.x, fuse.y, 3, '#fde047', 3.2);
+                        }
+                        if (this.igniteProgress >= 100) {
+                            this.startShow();
+                        }
+                    } else {
+                        this.igniteProgress = Math.max(0, this.igniteProgress - 1.5);
+                    }
+                    return;
+                }
+
+                if (this.state !== 'active') return;
+
+                this.timer++;
+                const id = this.spec.id;
+                soundEngine.boostDb(this.spec.maxDb);
+
+                if (id === 'paambu') {
+                    // Growing carbon ash snake coil
+                    if (this.timer % 2 === 0 && this.timer < 230) {
+                        const prev = this.snakeSegments[this.snakeSegments.length - 1];
+                        const t = this.timer * 0.08;
+                        const nx = prev.x + Math.sin(t) * 2.4 + (Math.random() - 0.5);
+                        const ny = prev.y - 0.85 + Math.cos(t * 1.5) * 0.5;
+                        this.snakeSegments.push({
+                            x: nx,
+                            y: ny,
+                            r: Math.max(3.5, 8.5 - this.snakeSegments.length * 0.04)
+                        });
+                        spawnSmoke(nx, ny, 1, 0.9);
+                        spawnSparks(this.x, this.y - 6, 1, '#f97316', 2);
+                    }
+                    if (this.timer >= 250) this.state = 'done';
+                } else if (id === 'mathappu') {
+                    // Golden sparkler burning down the wire
+                    const progress = this.timer / 240;
+                    const burnY = (this.y - 68) + progress * 42;
+                    if (Math.random() < 0.5) soundEngine.playSparklerCrackle();
+                    spawnSparks(this.x, burnY, 7, '#fef08a', 5.5, Math.PI * 2, 0, 0.08, 0.75);
+                    spawnSparks(this.x, burnY, 4, '#f59e0b', 4.0, Math.PI * 2, 0, 0.08, 0.75);
+                    if (this.timer >= 240) this.state = 'done';
+                } else if (id === 'chakkaram') {
+                    // Spinning ground wheel throwing tangential neon sparks
+                    this.spinAngle += 0.38;
+                    for (let k = 0; k < 4; k++) {
+                        const a = this.spinAngle + (k * Math.PI) / 2;
+                        const sx = this.x + Math.cos(a) * 16;
+                        const sy = (this.y - 8) + Math.sin(a) * 6;
+                        const cols = ['#06b6d4', '#ec4899', '#fde047', '#10b981'];
+                        spawnSparks(sx, sy, 2, cols[k % cols.length], 6.5, 0.5, a + Math.PI / 2, 0.12, 0.9);
+                    }
+                    if (this.timer >= 260) this.state = 'done';
+                } else if (id === 'poothotti') {
+                    // High vertical conical flower pot fountain
+                    const colors = ['#fef08a', '#f97316', '#ec4899', '#38bdf8'];
+                    const col = colors[this.timer % colors.length];
+                    const heightBoost = Math.sin((this.timer / 290) * Math.PI) * 6 + 9;
+                    spawnSparks(this.x, this.y - 36, 9, col, heightBoost, 0.48, -Math.PI / 2, 0.22, 1.35);
+                    if (this.timer % 6 === 0) spawnSmoke(this.x, this.y - 45, 1, 1.3);
+                    if (this.timer >= 290) this.state = 'done';
+                } else if (id === 'rocket') {
+                    // Skyward launch followed by high-altitude chrysanthemum burst
+                    this.rocketY -= 7.8;
+                    this.x += this.rocketVx;
+                    spawnSparks(this.x, this.rocketY + 15, 5, '#fbbf24', 3.5, 0.6, Math.PI / 2, 0.05, 0.7);
+                    spawnSmoke(this.x, this.rocketY + 18, 1, 0.8);
+
+                    if (this.timer >= 62 || this.rocketY < height * 0.18) {
+                        soundEngine.playBombBang(0.95, 0);
+                        screenShake = 12;
+                        skyFlash = 0.55;
+                        const burstColors = ['#a855f7', '#38bdf8', '#fde047', '#f43f5e', '#4ade80'];
+                        burstColors.forEach((c) => {
+                            spawnSparks(this.x, this.rocketY, 38, c, 9.5, Math.PI * 2, 0, 0.09, 1.6);
+                        });
+                        addFloatingText(this.x, this.rocketY, 'POW!! ✨ 95 dB', '#e879f9');
+                        this.state = 'done';
+                    }
+                } else if (id === 'wala1000') {
+                    // Rapid-fire multi-bomb garland chaos
+                    if (this.timer % 4 === 0 && this.timer < 320) {
+                        const bx = this.x + (Math.random() - 0.5) * 150;
+                        const by = this.y - Math.random() * 24;
+                        const pan = ((bx / width) - 0.5) * 1.6;
+                        soundEngine.playBombBang(0.75 + Math.random() * 0.35, pan);
+                        screenShake = 14;
+                        skyFlash = 0.45;
+                        spawnSparks(bx, by, 28, '#ef4444', 8.5, Math.PI * 2, 0, 0.2, 0.9);
+                        spawnSparks(bx, by, 22, '#fef08a', 7.0, Math.PI * 2, 0, 0.18, 0.85);
+                        spawnSmoke(bx, by, 3, 1.5);
+
+                        if (this.timer % 24 === 0) {
+                            const words = ['DHUM!', 'PADAAK!', '24/7 ROAR!', '120 dB!', 'ADRA SAKKAI!'];
+                            addFloatingText(bx, by - 30, words[Math.floor(Math.random() * words.length)], '#fb7185');
+                        }
+                    }
+                    if (this.timer >= 325) this.state = 'done';
+                }
+            }
+
+            draw(ctx) {
+                if (this.state === 'done' && this.spec.id !== 'paambu') return;
+
+                ctx.save();
+                const id = this.spec.id;
+
+                if (id === 'paambu') {
+                    // Draw black tablet disc
+                    ctx.fillStyle = '#1e293b';
+                    ctx.strokeStyle = '#64748b';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.ellipse(this.x, this.y - 4, 14, 6, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    // Draw coiled carbon snake if active/done
+                    if (this.snakeSegments.length > 0) {
+                        for (let i = 0; i < this.snakeSegments.length; i++) {
+                            const seg = this.snakeSegments[i];
+                            ctx.fillStyle = i % 2 === 0 ? '#1e293b' : '#334155';
+                            ctx.beginPath();
+                            ctx.arc(seg.x, seg.y, seg.r, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                    }
+                } else if (id === 'mathappu') {
+                    // Metal sparkler wire stood in a small festive brass holder
+                    ctx.fillStyle = '#d97706';
+                    ctx.fillRect(this.x - 8, this.y - 10, 16, 10);
+                    ctx.strokeStyle = '#cbd5e1';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.moveTo(this.x, this.y - 10);
+                    ctx.lineTo(this.x, this.y - 68);
+                    ctx.stroke();
+
+                    // Unburned chemical coating
+                    const progress = this.state === 'active' ? Math.min(1, this.timer / 240) : 0;
+                    const topCoatY = (this.y - 68) + progress * 42;
+                    if (progress < 1) {
+                        ctx.strokeStyle = '#78716c';
+                        ctx.lineWidth = 6;
+                        ctx.lineCap = 'round';
+                        ctx.beginPath();
+                        ctx.moveTo(this.x, this.y - 26);
+                        ctx.lineTo(this.x, topCoatY);
+                        ctx.stroke();
+                    }
+                } else if (id === 'chakkaram') {
+                    ctx.translate(this.x, this.y - 8);
+                    ctx.rotate(this.spinAngle);
+                    ctx.fillStyle = '#ec4899';
+                    ctx.strokeStyle = '#fde047';
+                    ctx.lineWidth = 2.5;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 16, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    ctx.fillStyle = '#10b981';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 9, 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (id === 'poothotti') {
+                    // Traditional conical clay/foil Poothotti
+                    ctx.fillStyle = '#f97316';
+                    ctx.strokeStyle = '#fde047';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(this.x, this.y - 38);
+                    ctx.lineTo(this.x - 20, this.y);
+                    ctx.lineTo(this.x + 20, this.y);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+
+                    // Decorative middle band
+                    ctx.fillStyle = '#ec4899';
+                    ctx.beginPath();
+                    ctx.moveTo(this.x - 10, this.y - 20);
+                    ctx.lineTo(this.x + 10, this.y - 20);
+                    ctx.lineTo(this.x + 15, this.y - 9);
+                    ctx.lineTo(this.x - 15, this.y - 9);
+                    ctx.closePath();
+                    ctx.fill();
+                } else if (id === 'rocket') {
+                    // Draw bottle stand on ground
+                    ctx.fillStyle = '#065f46';
+                    ctx.strokeStyle = '#34d399';
+                    ctx.lineWidth = 1.5;
+                    ctx.fillRect(this.x - 7, this.y - 22, 14, 22);
+                    ctx.strokeRect(this.x - 7, this.y - 22, 14, 22);
+
+                    // Draw rocket body at current rocketY
+                    const ry = this.state === 'active' ? this.rocketY : this.y;
+                    ctx.strokeStyle = '#d97706';
+                    ctx.lineWidth = 2.5;
+                    ctx.beginPath();
+                    ctx.moveTo(this.x, ry - 48);
+                    ctx.lineTo(this.x - 4, ry + 2);
+                    ctx.stroke();
+
+                    ctx.fillStyle = '#3b82f6';
+                    ctx.fillRect(this.x - 7, ry - 52, 14, 24);
+                    ctx.fillStyle = '#ef4444';
+                    ctx.beginPath();
+                    ctx.moveTo(this.x, ry - 68);
+                    ctx.lineTo(this.x - 10, ry - 52);
+                    ctx.lineTo(this.x + 10, ry - 52);
+                    ctx.closePath();
+                    ctx.fill();
+                } else if (id === 'lakshmi') {
+                    // Classic red & gold Lakshmi / Kuruvi Vedi cylinder
+                    ctx.fillStyle = '#dc2626';
+                    ctx.strokeStyle = '#fbbf24';
+                    ctx.lineWidth = 2;
+                    ctx.fillRect(this.x - 12, this.y - 34, 24, 34);
+                    ctx.strokeRect(this.x - 12, this.y - 34, 24, 34);
+
+                    ctx.fillStyle = '#fde047';
+                    ctx.fillRect(this.x - 12, this.y - 23, 24, 12);
+                } else if (id === 'wala1000') {
+                    // Coiled red 1000 Wala Saram garland mat
+                    ctx.fillStyle = '#991b1b';
+                    ctx.strokeStyle = '#ef4444';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.ellipse(this.x, this.y - 12, 42, 16, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    // Individual red crackers around the coil
+                    for (let a = 0; a < Math.PI * 2; a += 0.5) {
+                        const cx = this.x + Math.cos(a) * 28;
+                        const cy = (this.y - 12) + Math.sin(a) * 10;
+                        ctx.fillStyle = '#dc2626';
+                        ctx.fillRect(cx - 4, cy - 6, 8, 12);
+                    }
+                }
+                ctx.restore();
+
+                // Draw Fuse & Ignition Ring when idle
+                if (this.state === 'idle') {
+                    const fuse = this.getFusePos();
+                    ctx.save();
+                    ctx.strokeStyle = '#fde047';
+                    ctx.lineWidth = 2.5;
+                    ctx.beginPath();
+                    ctx.moveTo(fuse.x - 4, fuse.y + 8);
+                    ctx.quadraticCurveTo(fuse.x, fuse.y - 4, fuse.x + 5, fuse.y);
+                    ctx.stroke();
+
+                    // Pulsing target ring around the fuse tip
+                    const pulse = (Math.sin(Date.now() * 0.008) + 1) * 4 + 8;
+                    ctx.strokeStyle = 'rgba(251, 191, 36, 0.55)';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.arc(fuse.x, fuse.y, pulse, 0, Math.PI * 2);
+                    ctx.stroke();
+
+                    // Progress arc while holding Agarbatti near fuse
+                    if (this.igniteProgress > 0) {
+                        ctx.strokeStyle = '#f97316';
+                        ctx.lineWidth = 3.5;
+                        ctx.beginPath();
+                        ctx.arc(
+                            fuse.x,
+                            fuse.y,
+                            16,
+                            -Math.PI / 2,
+                            -Math.PI / 2 + (this.igniteProgress / 100) * Math.PI * 2
+                        );
+                        ctx.stroke();
+                    }
+                    ctx.restore();
+                }
+            }
+        }
+
+        function drawCharacterAndAgarbatti(ctx, tipX, tipY) {
+            const charX = Math.max(75, width * 0.22);
+            const charY = groundY;
+
+            // Check if any loud cracker is currently roaring for joyful expression
+            const isExcited = soundEngine.currentDb > 60;
+            const isSuperLoud = soundEngine.currentDb > 100;
+            const bounce = isExcited ? Math.abs(Math.sin(Date.now() * 0.015)) * 8 : 0;
+
+            ctx.save();
+            ctx.translate(charX, charY - bounce);
+
+            // Shadow on ground
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+            ctx.beginPath();
+            ctx.ellipse(0, bounce, 28, 7, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            if (characterType === 'boy') {
+                // Karthik in Cream Silk Veshti with Gold Kasavu Border & Festive Kurta
+                ctx.fillStyle = '#fef3c7'; // Silk Veshti
+                ctx.fillRect(-16, -38, 32, 36);
+                ctx.fillStyle = '#d97706'; // Gold Jari border
+                ctx.fillRect(-16, -8, 32, 4);
+                ctx.fillRect(6, -38, 3, 36);
+
+                // Festive Royal Maroon/Orange Silk Shirt
+                ctx.fillStyle = '#ea580c';
+                ctx.beginPath();
+                ctx.roundRect(-18, -76, 36, 40, 8);
+                ctx.fill();
+
+                // Gold Angavastram (Shoulder Stole)
+                ctx.strokeStyle = '#fbbf24';
+                ctx.lineWidth = 5;
+                ctx.beginPath();
+                ctx.moveTo(-12, -74);
+                ctx.lineTo(10, -40);
+                ctx.stroke();
+            } else {
+                // Ananya in Festive Magenta & Gold Pattu Pavadai (Silk Skirt & Blouse)
+                ctx.fillStyle = '#db2777';
+                ctx.beginPath();
+                ctx.moveTo(-14, -44);
+                ctx.lineTo(14, -44);
+                ctx.lineTo(24, -2);
+                ctx.lineTo(-24, -2);
+                ctx.closePath();
+                ctx.fill();
+
+                // Broad Gold Zari Border at bottom of Pattu Pavadai
+                ctx.fillStyle = '#fbbf24';
+                ctx.fillRect(-23, -10, 46, 7);
+
+                // Peacock Green Silk Blouse
+                ctx.fillStyle = '#0d9488';
+                ctx.beginPath();
+                ctx.roundRect(-16, -75, 32, 33, 7);
+                ctx.fill();
+            }
+
+            // Head
+            ctx.fillStyle = '#c68642';
+            ctx.beginPath();
+            ctx.arc(0, -94, 17, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Hair & Jasmine Malligai Poo for Ananya
+            ctx.fillStyle = '#1e1b4b';
+            ctx.beginPath();
+            ctx.arc(0, -98, 17.5, Math.PI, Math.PI * 2);
+            ctx.fill();
+
+            if (characterType === 'girl') {
+                // Braided bun with white Malligai (Jasmine) garland
+                ctx.fillStyle = '#1e1b4b';
+                ctx.beginPath();
+                ctx.arc(-16, -92, 8, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#ffffff';
+                for (let a = 0; a < 5; a++) {
+                    ctx.beginPath();
+                    ctx.arc(-18 + a * 2, -98 + a * 3, 2.5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            // Traditional Kumkum / Vibhuti Tilak on Forehead
+            ctx.fillStyle = '#ef4444';
+            ctx.beginPath();
+            ctx.arc(4, -99, 2.3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Eyes & Joyful Expression
+            ctx.fillStyle = '#0f172a';
+            ctx.beginPath();
+            ctx.arc(6, -94, 2.2, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = '#0f172a';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            if (isSuperLoud) {
+                // Wide "O" mouth in awe of 1000 Wala / Lakshmi Vedi
+                ctx.arc(6, -86, 4, 0, Math.PI * 2);
+            } else {
+                // Big Diwali smile
+                ctx.arc(5, -88, 5, 0.1, Math.PI - 0.2);
+            }
+            ctx.stroke();
+
+            ctx.restore();
+
+            // Draw Extended Arm & Long Agarbatti (Incense Stick) reaching pointer
+            const shoulderX = charX + 10;
+            const shoulderY = charY - 64 - bounce;
+
+            // Calculate hand position partway toward the cursor
+            const angle = Math.atan2(tipY - shoulderY, tipX - shoulderX);
+            const handDist = Math.min(42, Math.hypot(tipX - shoulderX, tipY - shoulderY) * 0.35);
+            const handX = shoulderX + Math.cos(angle) * handDist;
+            const handY = shoulderY + Math.sin(angle) * handDist;
+
+            // Arm
+            ctx.strokeStyle = '#c68642';
+            ctx.lineWidth = 7;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(shoulderX, shoulderY);
+            ctx.lineTo(handX, handY);
+            ctx.stroke();
+
+            // Agarbatti Stick from hand to glowing pointer tip
+            ctx.strokeStyle = '#a16207';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(handX, handY);
+            ctx.lineTo(tipX, tipY);
+            ctx.stroke();
+
+            // Glowing Agarbatti Tip (Ember)
+            const glowRadius = 12 + Math.sin(Date.now() * 0.02) * 3;
+            const grad = ctx.createRadialGradient(tipX, tipY, 1, tipX, tipY, glowRadius);
+            grad.addColorStop(0, '#ffffff');
+            grad.addColorStop(0.35, '#fbbf24');
+            grad.addColorStop(0.7, 'rgba(239, 68, 68, 0.6)');
+            grad.addColorStop(1, 'rgba(239, 68, 68, 0)');
+
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(tipX, tipY, glowRadius, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Subtle incense wisp from Agarbatti tip
+            if (Math.random() < 0.3) {
+                spawnSmoke(tipX, tipY - 4, 1, 0.35);
+            }
+        }
+
+        function buildCrackerDock() {
+            const dock = document.getElementById('cracker-dock');
+            dock.innerHTML = '';
+
+            CRACKERS.forEach((cracker) => {
+                const isSelected = cracker.id === selectedCracker.id;
+                const card = document.createElement('button');
+                card.className = `cracker-card flex flex-col items-center justify-between p-2 rounded-2xl border border-slate-700/80 bg-slate-900/75 text-center cursor-pointer min-w-[92px] sm:min-w-0 ${isSelected ? 'active' : ''}`;
+                card.onclick = () => selectCracker(cracker.id);
+
+                card.innerHTML = `
+                    <div class="w-full flex justify-between items-center text-[10px] font-bold px-1 mb-0.5">
+                        <span class="text-amber-300/80">#${cracker.level}</span>
+                        <span class="px-1.5 py-0.5 rounded-full text-[9px] border ${cracker.badgeBg}">${cracker.maxDb} dB</span>
+                    </div>
+                    <div class="my-1">${cracker.svg}</div>
+                    <div class="w-full">
+                        <div class="font-festive text-xs sm:text-sm font-bold text-amber-100 truncate">${cracker.tamilName}</div>
+                        <div class="text-[10px] text-amber-200/60 truncate">${cracker.engName}</div>
+                    </div>
+                `;
+                dock.appendChild(card);
+            });
+        }
+
+        function selectCracker(crackerId) {
+            soundEngine.init();
+            const found = CRACKERS.find((c) => c.id === crackerId);
+            if (!found) return;
+            selectedCracker = found;
+            buildCrackerDock();
+
+            if (playMode === 'stage') {
+                activeCrackers = [new FirecrackerInstance(selectedCracker, width * 0.56, groundY)];
+                document.getElementById('instruction-text').textContent =
+                    `Touch the glowing Agarbatti tip to the ${selectedCracker.tamilName} fuse! (${selectedCracker.soundDesc})`;
+            } else {
+                // Also spawn one immediately so selecting a card gives instant gratification
+                const rx = width * (0.38 + Math.random() * 0.42);
+                activeCrackers.push(new FirecrackerInstance(selectedCracker, rx, groundY));
+            }
+        }
+
+        function setCharacter(type) {
+            characterType = type;
+            const boyBtn = document.getElementById('char-boy-btn');
+            const girlBtn = document.getElementById('char-girl-btn');
+            if (type === 'boy') {
+                boyBtn.className = 'px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all bg-amber-500 text-slate-950 shadow';
+                girlBtn.className = 'px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all text-amber-200/80 hover:text-white';
+            } else {
+                girlBtn.className = 'px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all bg-amber-500 text-slate-950 shadow';
+                boyBtn.className = 'px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all text-amber-200/80 hover:text-white';
+            }
+        }
+
+        function togglePlayMode() {
+            playMode = playMode === 'stage' ? 'free' : 'stage';
+            const icon = document.getElementById('mode-icon');
+            const label = document.getElementById('mode-label');
+            const instr = document.getElementById('instruction-text');
+
+            if (playMode === 'free') {
+                icon.textContent = '✨';
+                label.textContent = 'Free-Place Mode';
+                instr.textContent = 'Click anywhere on the courtyard to place extra crackers, then touch fuses with the Agarbatti!';
+            } else {
+                icon.textContent = '🎯';
+                label.textContent = 'Stage Mode';
+                resetStage();
+            }
+        }
+
+        function resetStage() {
+            activeCrackers = [new FirecrackerInstance(selectedCracker, width * 0.56, groundY)];
+            document.getElementById('instruction-text').textContent =
+                `Hold the glowing Agarbatti tip near the ${selectedCracker.tamilName}'s fuse to light it!`;
+        }
+
+        function updatePointer(clientX, clientY) {
+            pointer.x = clientX;
+            pointer.y = clientY;
+            pointer.active = true;
+        }
+
+        canvas.addEventListener('pointerdown', (e) => {
+            soundEngine.init();
+            pointer.down = true;
+            updatePointer(e.clientX, e.clientY);
+
+            if (playMode === 'free' && e.clientY > height * 0.35 && e.clientY < groundY + 40) {
+                // Check if user clicked away from existing fuses to place a new cracker
+                const nearExisting = activeCrackers.some(
+                    (c) => c.state === 'idle' && Math.hypot(e.clientX - c.x, e.clientY - c.y) < 55
+                );
+                if (!nearExisting) {
+                    activeCrackers.push(new FirecrackerInstance(selectedCracker, e.clientX, groundY));
+                }
+            }
+        });
+
+        window.addEventListener('pointermove', (e) => {
+            updatePointer(e.clientX, e.clientY);
+        });
+
+        window.addEventListener('pointerup', () => {
+            pointer.down = false;
+        });
+
+        function updateDecibelHUD() {
+            // Smooth decay toward ambient 15 dB night
+            soundEngine.targetDb = Math.max(15, soundEngine.targetDb - 0.9);
+            soundEngine.currentDb += (soundEngine.targetDb - soundEngine.currentDb) * 0.25;
+            const db = Math.round(soundEngine.currentDb);
+
+            const dbText = document.getElementById('db-text');
+            const dbBar = document.getElementById('db-bar');
+            const pct = Math.min(100, Math.max(6, ((db - 15) / 105) * 100));
+            dbBar.style.width = `${pct}%`;
+
+            let label = 'Quiet Night';
+            let colorClass = 'text-emerald-400';
+            if (db > 100) {
+                label = 'MEGA DIWALI ROAR!';
+                colorClass = 'text-rose-500';
+            } else if (db > 80) {
+                label = 'Loud Burst!';
+                colorClass = 'text-red-400';
+            } else if (db > 50) {
+                label = 'Festive Sizzle';
+                colorClass = 'text-amber-400';
+            } else if (db > 20) {
+                label = 'Soft Fizz';
+                colorClass = 'text-emerald-300';
+            }
+
+            dbText.className = `font-festive font-bold text-xs sm:text-sm ${colorClass}`;
+            dbText.textContent = `${db} dB • ${label}`;
+        }
+
+        function drawCourtyardBackdrop() {
+            // Deep Tamil Nadu festive night sky gradient
+            const skyGrad = ctx.createLinearGradient(0, 0, 0, groundY);
+            skyGrad.addColorStop(0, '#05040d');
+            skyGrad.addColorStop(0.6, '#0f0c29');
+            skyGrad.addColorStop(1, '#1e1638');
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, width, groundY);
+
+            // Sky flash on loud bomb bursts
+            if (skyFlash > 0.01) {
+                ctx.fillStyle = `rgba(254, 240, 138, ${skyFlash * 0.35})`;
+                ctx.fillRect(0, 0, width, height);
+                skyFlash *= 0.86;
+            }
+
+            // Twinkling stars
+            stars.forEach((s) => {
+                s.alpha += s.speed;
+                const a = (Math.sin(s.alpha) + 1) * 0.4 + 0.2;
+                ctx.fillStyle = `rgba(254, 249, 195, ${a})`;
+                ctx.beginPath();
+                ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // Distant Tamil Nadu Gopuram & Coconut Tree Silhouette
+            ctx.fillStyle = '#0b081c';
+            const gopuramX = width * 0.82;
+            ctx.beginPath();
+            ctx.moveTo(gopuramX - 45, groundY);
+            ctx.lineTo(gopuramX - 24, groundY - 95);
+            ctx.lineTo(gopuramX + 24, groundY - 95);
+            ctx.lineTo(gopuramX + 45, groundY);
+            ctx.closePath();
+            ctx.fill();
+
+            // Courtyard Ground (Vaasal)
+            const groundGrad = ctx.createLinearGradient(0, groundY, 0, height);
+            groundGrad.addColorStop(0, '#1c192b');
+            groundGrad.addColorStop(1, '#090812');
+            ctx.fillStyle = groundGrad;
+            ctx.fillRect(0, groundY, width, height - groundY);
+
+            // Decorative Festive Kolam (Rangoli) on the Courtyard
+            ctx.save();
+            ctx.translate(width * 0.56, groundY + 12);
+            ctx.scale(1, 0.32);
+            ctx.strokeStyle = 'rgba(254, 243, 199, 0.22)';
+            ctx.lineWidth = 2;
+            for (let r = 24; r <= 72; r += 24) {
+                ctx.beginPath();
+                ctx.arc(0, 0, r, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            ctx.restore();
+
+            // Glowing Agal Vilakku (Clay Oil Lamps) along the courtyard edge
+            const lampPositions = [width * 0.12, width * 0.38, width * 0.74, width * 0.9];
+            lampPositions.forEach((lx) => {
+                ctx.fillStyle = '#b45309';
+                ctx.beginPath();
+                ctx.arc(lx, groundY - 2, 7, 0, Math.PI);
+                ctx.fill();
+
+                const flicker = Math.sin(Date.now() * 0.015 + lx) * 1.5;
+                ctx.fillStyle = '#fbbf24';
+                ctx.beginPath();
+                ctx.ellipse(lx, groundY - 8 + flicker * 0.3, 3, 6, 0, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            ctx.save();
+            if (screenShake > 0.2) {
+                const dx = (Math.random() - 0.5) * screenShake;
+                const dy = (Math.random() - 0.5) * screenShake;
+                ctx.translate(dx, dy);
+                screenShake *= 0.85;
+            }
+
+            drawCourtyardBackdrop();
+
+            // Auto-respawn fresh cracker in Stage Mode shortly after current one finishes
+            if (playMode === 'stage' && activeCrackers.length === 1) {
+                const c = activeCrackers[0];
+                if (c.state === 'done') {
+                    c.doneWait = (c.doneWait || 0) + 1;
+                    if (c.doneWait > 95) {
+                        activeCrackers = [new FirecrackerInstance(selectedCracker, width * 0.56, groundY)];
+                    }
+                }
+            }
+
+            // Update & Draw Crackers
+            activeCrackers.forEach((cracker) => {
+                cracker.update(pointer.x, pointer.y);
+                cracker.draw(ctx);
+            });
+
+            // Draw Character & Agarbatti
+            drawCharacterAndAgarbatti(ctx, pointer.x, pointer.y);
+
+            // Update & Draw Smoke Puffs
+            for (let i = smokePuffs.length - 1; i >= 0; i--) {
+                const s = smokePuffs[i];
+                s.x += s.vx;
+                s.y += s.vy;
+                s.r += 0.25;
+                s.alpha -= s.decay;
+                if (s.alpha <= 0) {
+                    smokePuffs.splice(i, 1);
+                    continue;
+                }
+                ctx.fillStyle = `rgba(148, 163, 184, ${s.alpha})`;
+                ctx.beginPath();
+                ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Update & Draw Firecracker Sparks
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += p.gravity;
+                p.vx *= 0.985;
+                p.alpha -= p.decay;
+                if (p.alpha <= 0) {
+                    particles.splice(i, 1);
+                    continue;
+                }
+                ctx.globalAlpha = Math.max(0, p.alpha);
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+
+            // Update & Draw Floating Onomatopoeia Text
+            for (let i = floatingTexts.length - 1; i >= 0; i--) {
+                const ft = floatingTexts[i];
+                ft.y += ft.vy;
+                ft.alpha -= 0.014;
+                if (ft.alpha <= 0) {
+                    floatingTexts.splice(i, 1);
+                    continue;
+                }
+                ctx.save();
+                ctx.font = 'bold 16px "Fredoka", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillStyle = ft.color;
+                ctx.globalAlpha = Math.max(0, ft.alpha);
+                ctx.fillText(ft.text, ft.x, ft.y);
+                ctx.restore();
+            }
+
+            ctx.restore();
+            updateDecibelHUD();
+        }
+
+        window.onload = function () {
+            resizeCanvas();
+            buildCrackerDock();
+            resetStage();
+            pointer.x = width * 0.45;
+            pointer.y = groundY - 40;
+            animate();
+        };
+    </script>
+</body>
+</html>
